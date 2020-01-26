@@ -1,0 +1,43 @@
+{- Podenv Dhall configuration for tidal
+-}
+
+let Podenv = env:PODENV_PRELUDE
+
+let Hub = env:PODENV_HUB
+
+let SuperCollider =
+      [ "https://copr-be.cloud.fedoraproject.org/results/tdecacqu/supercollider/fedora-rawhide-x86_64/01182887-supercollider/supercollider-3.10.4-1.fc32.x86_64.rpm"
+      , "https://copr-be.cloud.fedoraproject.org/results/tdecacqu/supercollider/fedora-rawhide-x86_64/01182887-supercollider/supercollider-emacs-3.10.4-1.fc32.noarch.rpm"
+      , "https://copr-be.cloud.fedoraproject.org/results/tdecacqu/supercollider/fedora-rawhide-x86_64/01182894-supercollider-sc3-plugins/supercollider-sc3-plugins-3.10.0-3.fc32.x86_64.rpm"
+      ]
+
+let TidalReq = [ "cabal-install", "zlib-devel" ]
+
+let Tools = [ "findutils", "procps-ng" ]
+
+let Base =
+      Hub.Runtimes.Fedora.Create.Latest
+        Podenv.Schemas.Env::{
+        , name = "tidal"
+        , command = Some [ "emacs" ]
+        , packages = Some (SuperCollider # TidalReq # Tools)
+        , environ = Some (toMap { JACK_NO_AUDIO_RESERVATION = "1" })
+        , capabilities = Podenv.Schemas.Capabilities::{
+          , terminal = Some True
+          , uidmap = Some True
+          , mount-cwd = Some True
+          , alsa = Some True
+          , dri = Some True
+          , x11 = Some True
+          }
+        }
+
+in      Base
+    //  { container-file = Some
+            (   Hub.Functions.getContainerFile Base
+              # [ Podenv.Schemas.Task::{
+                  , shell = Some "cabal update && cabal install tidal"
+                  }
+                ]
+            )
+        }
