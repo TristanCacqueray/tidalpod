@@ -36,7 +36,27 @@ in      Base
     //  { container-file = Some
             (   Hub.Functions.getContainerFile Base
               # [ Podenv.Schemas.Task::{
+                  , name = Some "Install tidal"
                   , shell = Some "cabal update && cabal install tidal"
+                  }
+                , Podenv.Schemas.Task::{
+                  , name = Some "Copy the bootstrap emacs conf"
+                  , copy = Some
+                      { dest = "/usr/share/emacs/tidal-setup.el"
+                      , content = ./setup.el as Text
+                      }
+                  }
+                , Podenv.Schemas.Task::{
+                  , name = Some "Install emacs packages"
+                  , shell = Some
+                      (     "emacs --batch -Q --eval"
+                        ++  " '(setq package-user-dir \"/usr/share/emacs/site-lisp/elpa\")'"
+                        ++  " -l /usr/share/emacs/tidal-setup.el"
+                      )
+                  }
+                , Podenv.Schemas.Task::{
+                  , shell = Some
+                      "chmod -R 755 /usr/share/emacs/site-lisp/elpa/gnupg/"
                   }
                 ]
             )
