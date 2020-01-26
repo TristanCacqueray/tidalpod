@@ -11,16 +11,18 @@ let SuperCollider =
       , "https://copr-be.cloud.fedoraproject.org/results/tdecacqu/supercollider/fedora-rawhide-x86_64/01182894-supercollider-sc3-plugins/supercollider-sc3-plugins-3.10.0-3.fc32.x86_64.rpm"
       ]
 
-let TidalReq = [ "cabal-install", "zlib-devel" ]
+let SuperDirt = [ "git", "which", "xorg-x11-server-Xvfb", "rsync" ]
 
-let Tools = [ "findutils", "procps-ng" ]
+let Tidal = [ "cabal-install", "zlib-devel" ]
+
+let Tools = [ "findutils", "procps-ng", "iproute" ]
 
 let Base =
       Hub.Runtimes.Fedora.Create.Latest
         Podenv.Schemas.Env::{
         , name = "tidal"
-        , command = Some [ "emacs" ]
-        , packages = Some (SuperCollider # TidalReq # Tools)
+        , command = Some [ "emacs", "-l", "init.el" ]
+        , packages = Some (SuperCollider # SuperDirt # Tidal # Tools)
         , environ = Some (toMap { JACK_NO_AUDIO_RESERVATION = "1" })
         , capabilities = Podenv.Schemas.Capabilities::{
           , terminal = Some True
@@ -32,12 +34,35 @@ let Base =
           }
         }
 
+let {- This is quite dirty, sclang batch mode requires some tricks...
+       The `sleep 300` could be replaced by something that wait for ~/.local/share/SuperCollider lib
+    -} InstallSuperDirt =
+      Podenv.Schemas.Task::{
+      , name = Some "Install SuperDirt"
+      , shell = Some
+          (     "(echo 'Quarks.checkForUpdates({Quarks.install(\"SuperDirt\", \"v1.1.1\"); thisProcess.recompile()})'; sleep 300; echo 0.exit) | "
+            ++  "su user bash -c '/usr/bin/Xvfb :99 -ac -screen 0 1280x1024x16 & "
+            ++  "QT_PLATFORM_PLUGIN=offscreen DISPLAY=:99.0 sclang'"
+          )
+      }
+
+let {- https://github.com/haskell/cabal/issues/5516
+    -} FixCabal =
+      "mkdir -p ~/.cabal/store/ghc-8.6.5/package.db"
+
 in      Base
     //  { container-file = Some
             (   Hub.Functions.getContainerFile Base
-              # [ Podenv.Schemas.Task::{
+              # [ InstallSuperDirt
+                , Podenv.Schemas.Task::{
                   , name = Some "Install tidal"
-                  , shell = Some "cabal update && cabal install tidal"
+                  , shell = Some
+                      (     "su user bash -c 'cd /home/user"
+                        ++  " && cabal new-update"
+                        ++  " && ${FixCabal}"
+                        ++  " && cabal new-install tidal --lib"
+                        ++  "'"
+                      )
                   }
                 , Podenv.Schemas.Task::{
                   , name = Some "Copy the bootstrap emacs conf"
@@ -55,6 +80,7 @@ in      Base
                       )
                   }
                 , Podenv.Schemas.Task::{
+                  , name = Some "Fix global install permission"
                   , shell = Some
                       "chmod -R 755 /usr/share/emacs/site-lisp/elpa/gnupg/"
                   }
