@@ -13,7 +13,9 @@ let SuperCollider =
 
 let SuperDirt = [ "git", "which", "xorg-x11-server-Xvfb", "rsync" ]
 
-let Tidal = [ "cabal-install", "zlib-devel" ]
+let Tidal = [ "cabal-install", "zlib-devel", "ghc-template-haskell-devel" ]
+
+let TidalVersion = "1.4.7"
 
 let Tools = [ "findutils", "procps-ng", "iproute" ]
 
@@ -21,13 +23,15 @@ let Base =
       Hub.Runtimes.Fedora.Create.Latest
         Podenv.Schemas.Env::{
         , name = "tidal"
-        , command = Some [ "emacs", "-l", "init.el" ]
+        , command = Some [ "emacs", "-l", "init.el", "main.tidal" ]
         , packages = Some (SuperCollider # SuperDirt # Tidal # Tools)
         , environ = Some (toMap { JACK_NO_AUDIO_RESERVATION = "1" })
+        , syscaps = Some [ "CAP_SYS_NICE" ]
         , capabilities = Podenv.Schemas.Capabilities::{
           , terminal = Some True
           , uidmap = Some True
           , mount-cwd = Some True
+          , local-network = Some True
           , alsa = Some True
           , dri = Some True
           , x11 = Some True
@@ -58,9 +62,9 @@ in      Base
                   , name = Some "Install tidal"
                   , shell = Some
                       (     "su user bash -c 'cd /home/user"
-                        ++  " && cabal new-update"
+                        ++  " && cabal update"
                         ++  " && ${FixCabal}"
-                        ++  " && cabal new-install tidal --lib"
+                        ++  " && cabal new-install tidal-${TidalVersion} --lib"
                         ++  "'"
                       )
                   }

@@ -53,3 +53,16 @@
   (define-key haskell-mode-map (kbd "C-c C-l") 'haskell-process-load-or-reload))
 ;; Dark theme
 (load-theme 'wheatgrass)
+
+;; Add shortcuts
+(defun qjackctl ()
+  (interactive)
+  (start-process "qjackctl" "*qjackctl*" "qjackctl"))
+
+(global-set-key (kbd "<f1>") 'qjackctl)
+
+(defun scide ()
+  (interactive)
+  (start-process "scide" "*scide*" "scide"))
+
+(global-set-key (kbd "<f2>") 'scide)
